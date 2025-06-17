@@ -7,7 +7,7 @@ const { Server } = require('socket.io');
 const authRoutes = require('./routes/auth');
 const timelineRoutes = require('./routes/timeline');
 const searchRoutes = require('./routes/search');
-const { initDatabase } = require('./database/db');
+const { initDatabase, query } = require('./database/db');
 
 const app = express();
 const server = createServer(app);
@@ -46,7 +46,32 @@ app.use('/api/auth', authRoutes);
 app.use('/api/timeline', timelineRoutes);
 app.use('/api/search', searchRoutes);
 
-// Health check
+// Health check for Render deployment
+app.get('/health', async (req, res) => {
+  try {
+    // Test database connection
+    await query('SELECT 1');
+    
+    res.status(200).json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      service: 'kalishare-backend',
+      database: 'connected',
+      version: '1.0.0'
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(503).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      service: 'kalishare-backend',
+      database: 'disconnected',
+      error: error.message
+    });
+  }
+});
+
+// API health check
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
@@ -130,7 +155,8 @@ app.use('*', (req, res) => {
       '/api/auth',
       '/api/timeline', 
       '/api/search',
-      '/api/health'
+      '/api/health',
+      '/health'
     ]
   });
 });
@@ -142,7 +168,7 @@ initDatabase()
   .then(() => {
     server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+      console.log(`📊 Health check: http://localhost:${PORT}/health`);
       console.log(`🔍 API info: http://localhost:${PORT}/api`);
     });
   })

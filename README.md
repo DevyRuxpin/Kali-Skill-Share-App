@@ -193,15 +193,25 @@ cd frontend
 npm test
 ```
 
-## 🚀 Deployment
+## 🌐 **Deployment Options**
 
-### Free Hosting Options
-1. **Railway** (Recommended) - $5/month credit, PostgreSQL included
-2. **Render** - 750 hours/month free tier
-3. **Vercel + Railway** - Frontend on Vercel, backend on Railway
+### **🚀 Recommended: Render (Free)**
+- **Perfect for KaliShare**: Node.js + PostgreSQL + React support
+- **Free Tier**: Web services, database, and static sites
+- **Easy Setup**: Automatic deployments from GitHub
+- **Global CDN**: Fast loading worldwide
 
-### Quick Deployment
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
+**Quick Deploy:**
+1. Fork this repository
+2. Sign up at [render.com](https://render.com)
+3. Follow the [Render Deployment Guide](RENDER_DEPLOYMENT.md)
+
+### **Other Free Options**
+- **Railway**: Docker-based deployment
+- **Vercel**: Frontend hosting with serverless functions
+- **Heroku**: Traditional hosting (limited free tier)
+
+For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## 📊 Performance Features
 
