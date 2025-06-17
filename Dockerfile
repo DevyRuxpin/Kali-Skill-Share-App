@@ -1,11 +1,14 @@
-# KaliShare Dockerfile (fixed for cloud build)
-FROM node:18-alpine as base
+# Simple KaliShare Dockerfile for Railway
+FROM node:18-alpine
+
+# Install necessary tools
+RUN apk add --no-cache curl
 
 WORKDIR /app
 
-# Copy backend and frontend separately for better layer caching
-COPY backend ./backend
-COPY frontend ./frontend
+# Copy package files first for better caching
+COPY backend/package*.json ./backend/
+COPY frontend/package*.json ./frontend/
 
 # Install backend dependencies
 WORKDIR /app/backend
@@ -16,15 +19,16 @@ WORKDIR /app/frontend
 RUN npm ci
 RUN npm run build
 
-# Go back to /app for docker-compose compatibility
+# Copy all source code
 WORKDIR /app
+COPY . .
 
-# Expose ports for backend, frontend, and db
-EXPOSE 3000 5001 5432
+# Expose ports
+EXPOSE 3000 5001
 
-# Health check for backend
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --spider -q http://localhost:5001/health || exit 1
+  CMD curl -f http://localhost:5001/health || exit 1
 
-# Default command (for docker-compose or cloud)
-CMD ["docker-compose", "up", "-d"] 
+# Start command
+CMD ["sh", "-c", "cd backend && npm start & cd frontend && npm start"] 
