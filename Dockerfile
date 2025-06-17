@@ -1,12 +1,13 @@
-# Simple KaliShare Dockerfile for Railway
+# Railway-compatible Dockerfile for KaliShare
 FROM node:18-alpine
 
-# Install necessary tools
+# Install curl for health checks
 RUN apk add --no-cache curl
 
+# Set working directory
 WORKDIR /app
 
-# Copy package files first for better caching
+# Copy package files
 COPY backend/package*.json ./backend/
 COPY frontend/package*.json ./frontend/
 
@@ -30,5 +31,5 @@ EXPOSE 3000 5001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:5001/health || exit 1
 
-# Start command
+# Start both services
 CMD ["sh", "-c", "cd backend && npm start & cd frontend && npm start"] 
