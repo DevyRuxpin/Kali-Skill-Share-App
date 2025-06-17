@@ -1,33 +1,30 @@
-# Multi-stage build for KaliShare app
+# KaliShare Dockerfile (fixed for cloud build)
 FROM node:18-alpine as base
 
-# Install Docker CLI for docker-compose
-RUN apk add --no-cache docker-cli
-
-# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY docker-compose.yml ./
+# Copy backend and frontend separately for better layer caching
+COPY backend ./backend
+COPY frontend ./frontend
 
-# Copy source code
-COPY backend/ ./backend/
-COPY frontend/ ./frontend/
+# Install backend dependencies
+WORKDIR /app/backend
+RUN npm ci --only=production
 
-# Install dependencies
-RUN cd backend && npm ci --only=production
-RUN cd frontend && npm ci
+# Install frontend dependencies and build
+WORKDIR /app/frontend
+RUN npm ci
+RUN npm run build
 
-# Build frontend
-RUN cd frontend && npm run build
+# Go back to /app for docker-compose compatibility
+WORKDIR /app
 
-# Expose ports
+# Expose ports for backend, frontend, and db
 EXPOSE 3000 5001 5432
 
-# Health check
+# Health check for backend
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:5001/health || exit 1
+  CMD wget --spider -q http://localhost:5001/health || exit 1
 
-# Start command
+# Default command (for docker-compose or cloud)
 CMD ["docker-compose", "up", "-d"] 
