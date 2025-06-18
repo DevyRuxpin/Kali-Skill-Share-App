@@ -7,9 +7,8 @@ RUN apk add --no-cache curl
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY backend/package*.json ./backend/
-COPY frontend/package*.json ./frontend/
+# Copy all source code first
+COPY . .
 
 # Install backend dependencies
 WORKDIR /app/backend
@@ -20,9 +19,8 @@ WORKDIR /app/frontend
 RUN npm ci
 RUN npm run build
 
-# Copy all source code
+# Go back to root directory
 WORKDIR /app
-COPY . .
 
 # Expose ports
 EXPOSE 3000 5001
