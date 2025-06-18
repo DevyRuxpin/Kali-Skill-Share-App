@@ -5,6 +5,9 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
+// Add query function for compatibility
+const query = (text, params) => pool.query(text, params);
+
 const initDatabase = async () => {
   try {
     // Create users table
@@ -50,5 +53,6 @@ const initDatabase = async () => {
 
 module.exports = {
   pool,
+  query,
   initDatabase
 }; 
