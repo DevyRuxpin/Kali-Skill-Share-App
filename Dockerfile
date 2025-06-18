@@ -14,8 +14,8 @@ COPY . .
 WORKDIR /app/backend
 RUN npm ci --only=production
 
-# Go back to root directory
-WORKDIR /app
+# Set working directory to backend for running the app
+WORKDIR /app/backend
 
 # Expose backend port
 EXPOSE 5001
@@ -24,5 +24,5 @@ EXPOSE 5001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:5001/health || exit 1
 
-# Start backend service
-CMD ["sh", "-c", "cd /app/backend && npm start"] 
+# Start backend service directly
+CMD ["npm", "start"] 
