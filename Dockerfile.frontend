@@ -1,0 +1,30 @@
+# Railway-specific Dockerfile for KaliShare Frontend
+FROM node:18-alpine
+
+# Install serve for static file serving
+RUN npm install -g serve
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY frontend/package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy frontend source code
+COPY frontend/ ./
+
+# Build the React app
+RUN npm run build
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget --spider -q http://localhost:3000 || exit 1
+
+# Serve the built app
+CMD ["serve", "-s", "build", "-l", "3000"] 
