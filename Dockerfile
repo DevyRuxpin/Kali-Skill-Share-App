@@ -17,12 +17,12 @@ RUN npm ci --only=production
 # Set working directory to backend for running the app
 WORKDIR /app/backend
 
-# Expose backend port
-EXPOSE 5001
+# Expose backend port (use PORT environment variable)
+EXPOSE ${PORT:-5000}
 
-# Health check
+# Health check (use PORT environment variable)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:5001/health || exit 1
+  CMD curl -f http://localhost:${PORT:-5000}/health || exit 1
 
 # Start backend service directly
 CMD ["npm", "start"] 
