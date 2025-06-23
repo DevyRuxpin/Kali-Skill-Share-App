@@ -34,6 +34,8 @@ const Signup = ({ onSignup }) => {
     setLoading(true);
 
     try {
+      console.log('Attempting signup for:', formData.email);
+      
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: {
@@ -45,7 +47,10 @@ const Signup = ({ onSignup }) => {
         }),
       });
 
+      console.log('Signup response status:', response.status);
+      
       const data = await response.json();
+      console.log('Signup response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Signup failed');
@@ -53,7 +58,12 @@ const Signup = ({ onSignup }) => {
 
       onSignup(data.user, data.token);
     } catch (err) {
-      setError(err.message);
+      console.error('Signup error:', err);
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        setError('Network error. Please check your connection and try again.');
+      } else {
+        setError(err.message || 'Network error. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

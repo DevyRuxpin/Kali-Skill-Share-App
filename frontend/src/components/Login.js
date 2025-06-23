@@ -24,6 +24,8 @@ const Login = ({ onLogin }) => {
     setLoading(true);
 
     try {
+      console.log('Attempting login for:', formData.email);
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -32,7 +34,10 @@ const Login = ({ onLogin }) => {
         body: JSON.stringify(formData),
       });
 
+      console.log('Login response status:', response.status);
+      
       const data = await response.json();
+      console.log('Login response data:', data);
 
       if (response.ok) {
         onLogin(data.user, data.token);
@@ -53,7 +58,12 @@ const Login = ({ onLogin }) => {
         });
       }
     } catch (error) {
-      setError('Network error. Please try again.');
+      console.error('Login error:', error);
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        setError('Network error. Please check your connection and try again.');
+      } else {
+        setError('Network error. Please try again.');
+      }
       
       // Track login error
       trackError('Login Error', {
