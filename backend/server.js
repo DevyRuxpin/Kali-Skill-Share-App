@@ -38,6 +38,11 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
+    // Always allow Railway domains
+    if (origin.includes('railway.app') || origin.includes('railway.com')) {
+      return callback(null, true);
+    }
+    
     // Check if origin is in allowed list
     if (allowedOrigins.includes(origin) || 
         allowedOrigins.some(allowed => allowed.includes('*') && origin.includes(allowed.replace('*', '')))) {
