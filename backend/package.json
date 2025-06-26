@@ -10,23 +10,28 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "express": "^4.18.1",
-    "cors": "^2.8.5",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^8.5.1",
-    "pg": "^8.7.3",
-    "socket.io": "^4.5.1",
     "axios": "^0.27.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
     "dotenv": "^16.0.0",
+    "express": "^4.18.1",
+    "express-rate-limit": "^6.3.0",
     "helmet": "^5.0.2",
-    "express-rate-limit": "^6.3.0"
+    "jsonwebtoken": "^8.5.1",
+    "node-cache": "^5.1.2",
+    "pg": "^8.7.3",
+    "socket.io": "^4.5.1"
   },
   "devDependencies": {
-    "nodemon": "^2.0.15",
     "jest": "^28.1.0",
+    "nodemon": "^2.0.15",
     "supertest": "^6.2.4"
   },
-  "keywords": ["api", "skills", "education"],
+  "keywords": [
+    "api",
+    "skills",
+    "education"
+  ],
   "author": "Kali Consulting LLC",
   "license": "MIT"
-} 
+}

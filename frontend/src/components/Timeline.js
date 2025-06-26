@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import { useAnalytics } from '../hooks/useAnalytics';
+import { 
+  FaHeart, FaComment, FaShare, FaTrash, FaEllipsisH, FaPlay,
+  FaYoutube, FaTwitch, FaVideo, FaUser, FaClock, FaGlobe, FaPaperPlane, FaSpinner
+} from 'react-icons/fa';
 
 const getAvatar = (email) => {
   // Simple avatar using first letter of email
@@ -38,57 +42,102 @@ const getEmbedUrl = (url) => {
   return null;
 };
 
-const Timeline = ({ user }) => {
+const Timeline = () => {
   const [posts, setPosts] = useState([]);
   const [newPost, setNewPost] = useState('');
   const [newLivestreamUrl, setNewLivestreamUrl] = useState('');
   const [newComment, setNewComment] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [socket, setSocket] = useState(null);
+  const [showLivestreamInput, setShowLivestreamInput] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState({});
+  const [showDropdown, setShowDropdown] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [showCommentDeleteConfirm, setShowCommentDeleteConfirm] = useState(null);
   const { trackUserAction, trackFeatureUsage } = useAnalytics();
+  const postsEndRef = useRef(null);
+  const [user, setUser] = useState(null);
+
+  const scrollToBottom = () => {
+    postsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
+    scrollToBottom();
+  }, [posts]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('Please log in to view the timeline');
+      setLoading(false);
+      return;
+    }
+
     fetchPosts();
-    const newSocket = io('http://localhost:5001');
-    setSocket(newSocket);
-    newSocket.on('connect', () => {
-      newSocket.emit('join-timeline');
-    });
-    newSocket.on('post-added', (post) => {
-      setPosts(prevPosts => [post, ...prevPosts]);
-    });
-    newSocket.on('comment-added', (comment) => {
-      setPosts(prevPosts =>
-        prevPosts.map(post => {
-          if (post.id === comment.post_id) {
-            return {
-              ...post,
-              comments: [...(post.comments || []), comment]
-            };
-          }
-          return post;
-        })
-      );
-    });
-    return () => {
-      newSocket.close();
-    };
+    initializeSocket();
   }, []);
+
+  const initializeSocket = () => {
+    const newSocket = io();
+    setSocket(newSocket);
+
+    newSocket.on('connect', () => {
+      console.log('Connected to timeline');
+    });
+
+    newSocket.on('newPost', (post) => {
+      setPosts(prev => [post, ...prev]);
+      trackUserAction('New Post Received', { postId: post._id });
+    });
+
+    newSocket.on('postDeleted', (postId) => {
+      setPosts(prev => prev.filter(post => post._id !== postId));
+      trackUserAction('Post Deleted', { postId });
+    });
+
+    newSocket.on('newComment', (data) => {
+      setPosts(prev => prev.map(post => 
+        post._id === data.postId 
+          ? { ...post, comments: [...(post.comments || []), data.comment] }
+          : post
+      ));
+      trackUserAction('New Comment Received', { postId: data.postId, commentId: data.comment._id });
+    });
+
+    newSocket.on('commentDeleted', (data) => {
+      setPosts(prev => prev.map(post => 
+        post._id === data.postId 
+          ? { ...post, comments: post.comments.filter(comment => comment._id !== data.commentId) }
+          : post
+      ));
+      trackUserAction('Comment Deleted', { postId: data.postId, commentId: data.commentId });
+    });
+
+    return () => newSocket.close();
+  };
 
   const fetchPosts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/timeline/posts', {
+      const response = await fetch('/api/timeline', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      if (response.ok) {
-        const data = await response.json();
-        setPosts(data);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch posts');
       }
+
+      const data = await response.json();
+      setPosts(data.posts);
+      setUser(data.user);
     } catch (error) {
       console.error('Error fetching posts:', error);
+      setError(error.message || 'Failed to load timeline');
     } finally {
       setLoading(false);
     }
@@ -97,237 +146,774 @@ const Timeline = ({ user }) => {
   const handleSubmitPost = async (e) => {
     e.preventDefault();
     if (!newPost.trim()) return;
-    
+
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/timeline/posts', {
+      const response = await fetch('/api/timeline', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          content: newPost,
-          livestream_url: newLivestreamUrl.trim() || null
-        })
+        body: JSON.stringify({ content: newPost })
       });
-      if (response.ok) {
-        const post = await response.json();
-        setNewPost('');
-        setNewLivestreamUrl('');
-        
-        // Track post creation
-        trackUserAction('Post Created', {
-          hasLivestream: !!newLivestreamUrl.trim(),
-          postLength: newPost.length,
-          livestreamPlatform: newLivestreamUrl.includes('youtube') ? 'YouTube' : 
-                             newLivestreamUrl.includes('twitch') ? 'Twitch' :
-                             newLivestreamUrl.includes('zoom') ? 'Zoom' :
-                             newLivestreamUrl.includes('meet.google') ? 'Google Meet' : null
-        });
-        
-        if (socket) {
-          socket.emit('new-post', post);
-        }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create post');
+      }
+
+      const post = await response.json();
+      setPosts(prev => [post, ...prev]);
+      setNewPost('');
+      
+      trackUserAction('Post Created', { postId: post._id });
+      
+      if (socket) {
+        socket.emit('newPost', post);
       }
     } catch (error) {
       console.error('Error creating post:', error);
+      setError(error.message || 'Failed to create post');
     }
   };
 
-  const handleSubmitComment = async (postId) => {
-    const commentContent = newComment[postId];
-    if (!commentContent || !commentContent.trim()) return;
-    
+  const handleDeletePost = async (postId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/timeline/posts/${postId}/comments`, {
+      const response = await fetch(`/api/timeline/${postId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete post');
+      }
+
+      setPosts(prev => prev.filter(post => post._id !== postId));
+      setShowDeleteConfirm(null);
+      setShowDropdown(null);
+      
+      trackUserAction('Post Deleted', { postId });
+      
+      if (socket) {
+        socket.emit('postDeleted', postId);
+      }
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      setError(error.message || 'Failed to delete post');
+    }
+  };
+
+  const handleAddComment = async (postId, commentText) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/timeline/${postId}/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ content: commentContent })
+        body: JSON.stringify({ content: commentText })
       });
-      if (response.ok) {
-        const comment = await response.json();
-        setNewComment(prev => ({ ...prev, [postId]: '' }));
-        
-        // Track comment creation
-        trackUserAction('Comment Added', {
-          commentLength: commentContent.length,
-          postId: postId
-        });
-        
-        if (socket) {
-          socket.emit('new-comment', { ...comment, post_id: postId });
-        }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add comment');
+      }
+
+      const comment = await response.json();
+      setPosts(prev => prev.map(post => 
+        post._id === postId 
+          ? { ...post, comments: [...(post.comments || []), comment] }
+          : post
+      ));
+      
+      trackUserAction('Comment Added', { postId, commentId: comment._id });
+      
+      if (socket) {
+        socket.emit('newComment', { postId, comment });
       }
     } catch (error) {
-      console.error('Error creating comment:', error);
+      console.error('Error adding comment:', error);
+      setError(error.message || 'Failed to add comment');
     }
   };
 
-  // Track livestream views
-  const handleLivestreamView = (platform, url) => {
-    trackFeatureUsage('Livestream Viewed', {
-      platform: platform,
-      url: url
-    });
+  const handleDeleteComment = async (postId, commentId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/timeline/${postId}/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete comment');
+      }
+
+      setPosts(prev => prev.map(post => 
+        post._id === postId 
+          ? { ...post, comments: post.comments.filter(comment => comment._id !== commentId) }
+          : post
+      ));
+      setShowCommentDeleteConfirm(null);
+      
+      trackUserAction('Comment Deleted', { postId, commentId });
+      
+      if (socket) {
+        socket.emit('commentDeleted', { postId, commentId });
+      }
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      setError(error.message || 'Failed to delete comment');
+    }
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return date.toLocaleDateString();
   };
 
   if (loading) {
     return (
       <div className="container">
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <h2>Loading timeline...</h2>
+        <div style={{ 
+          textAlign: 'center', 
+          padding: 'var(--space-3xl) var(--space-lg)',
+          minHeight: '60vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{ 
+            fontSize: '3rem', 
+            marginBottom: 'var(--space-lg)', 
+            color: 'var(--primary-color)',
+            animation: 'pulse 2s infinite'
+          }}>
+            💬
+          </div>
+          <div style={{ 
+            fontSize: '1.5rem', 
+            color: 'var(--text-secondary)', 
+            marginBottom: 'var(--space-md)',
+            fontWeight: '600'
+          }}>
+            Loading Timeline
+          </div>
+          <div style={{ 
+            color: 'var(--text-tertiary)', 
+            fontSize: '1rem'
+          }}>
+            Connecting to real-time updates...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container">
+        <div style={{ 
+          textAlign: 'center', 
+          padding: 'var(--space-3xl) var(--space-lg)',
+          minHeight: '60vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{ 
+            fontSize: '4rem', 
+            marginBottom: 'var(--space-lg)', 
+            color: 'var(--error-color)',
+            animation: 'shake 0.5s ease-in-out'
+          }}>
+            ⚠️
+          </div>
+          <h3 style={{ 
+            color: 'var(--text-primary)', 
+            marginBottom: 'var(--space-md)',
+            fontSize: '1.75rem',
+            fontWeight: '600'
+          }}>
+            Timeline Error
+          </h3>
+          <p style={{ 
+            color: 'var(--text-secondary)', 
+            marginBottom: 'var(--space-xl)',
+            fontSize: '1.1rem',
+            maxWidth: '500px'
+          }}>
+            {error}
+          </p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="btn btn-primary"
+            style={{ fontSize: '1rem', padding: 'var(--space-md) var(--space-xl)' }}
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container">
-      <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ color: '#2c3e50', marginBottom: '20px' }}>Timeline</h1>
-        <div className="card" style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.07)', border: '1px solid #e3e3e3' }}>
-          <form onSubmit={handleSubmitPost} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div className="form-group">
-              <label htmlFor="newPost" style={{ fontWeight: 500 }}>Share your thoughts:</label>
-              <textarea
-                id="newPost"
-                className="form-control"
-                rows="3"
-                value={newPost}
-                onChange={(e) => setNewPost(e.target.value)}
-                placeholder="What's on your mind about web development?"
-                required
-                style={{ resize: 'vertical', minHeight: 60 }}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="livestreamUrl" style={{ fontWeight: 500, color: '#6c757d' }}>
-                🎥 Livestream URL (optional):
-              </label>
-              <input
-                type="url"
-                id="livestreamUrl"
-                className="form-control"
-                value={newLivestreamUrl}
-                onChange={(e) => setNewLivestreamUrl(e.target.value)}
-                placeholder="YouTube Live, Twitch, Zoom, or Google Meet URL"
-                style={{ fontSize: 14 }}
-              />
-              <small style={{ color: '#6c757d', fontSize: 12 }}>
-                Supported: YouTube Live, Twitch, Zoom, Google Meet
-              </small>
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-end', minWidth: 120 }}>
-              Post
-            </button>
-          </form>
+    <div className="container fade-in">
+      {/* Header */}
+      <div style={{ 
+        textAlign: 'center', 
+        marginBottom: 'var(--space-2xl)',
+        padding: 'var(--space-xl) 0'
+      }}>
+        <div style={{
+          background: 'linear-gradient(135deg, var(--primary-lighter) 0%, var(--accent-lighter) 100%)',
+          borderRadius: 'var(--radius-2xl)',
+          padding: 'var(--space-2xl)',
+          border: '1px solid var(--border-light)',
+          boxShadow: 'var(--shadow-lg)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: '-50%',
+            right: '-50%',
+            width: '200%',
+            height: '200%',
+            background: 'radial-gradient(circle, rgba(37, 99, 235, 0.1) 0%, transparent 70%)',
+            animation: 'float 6s ease-in-out infinite'
+          }} />
+          
+          <h1 style={{ 
+            color: 'var(--text-primary)', 
+            marginBottom: 'var(--space-md)', 
+            fontWeight: '800', 
+            fontSize: '2.5rem',
+            background: 'linear-gradient(135deg, var(--primary-color), var(--accent-color))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            position: 'relative',
+            zIndex: 1
+          }}>
+            Developer Timeline
+          </h1>
+          <p style={{ 
+            fontSize: '1.1rem', 
+            color: 'var(--text-secondary)', 
+            marginBottom: '0',
+            fontWeight: '500',
+            position: 'relative',
+            zIndex: 1
+          }}>
+            Share your thoughts, ask questions, and connect with the community
+          </p>
         </div>
       </div>
-      <div>
-        {posts.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '50px' }}>
-            <h3 style={{ color: '#6c757d' }}>No posts yet</h3>
-            <p>Be the first to share something!</p>
+
+      {/* Create Post Form */}
+      <div className="card" style={{ 
+        marginBottom: 'var(--space-xl)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '4px',
+          background: 'linear-gradient(90deg, var(--primary-color), var(--accent-color))'
+        }} />
+        
+        <form onSubmit={handleSubmitPost} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-md)' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              background: 'linear-gradient(135deg, var(--primary-color), var(--accent-color))',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontSize: '1.2rem',
+              fontWeight: 'bold',
+              boxShadow: 'var(--shadow-md)',
+              flexShrink: 0
+            }}>
+              <FaUser />
+            </div>
+            <div style={{ flex: 1 }}>
+              <textarea
+                value={newPost}
+                onChange={(e) => setNewPost(e.target.value)}
+                placeholder="What's on your mind? Share your thoughts, questions, or discoveries..."
+                className="form-control"
+                style={{ 
+                  minHeight: '120px',
+                  resize: 'vertical',
+                  fontSize: '1rem',
+                  lineHeight: '1.6',
+                  border: '2px solid var(--border-light)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: 'var(--space-md)',
+                  transition: 'all var(--transition-normal)'
+                }}
+                disabled={!user}
+              />
+            </div>
           </div>
-        ) : (
-          posts.map((post) => (
-            <div key={post.id} className="timeline-post" style={{ display: 'flex', gap: 16, alignItems: 'flex-start', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid #e3e3e3' }}>
-              <div style={{ minWidth: 48, minHeight: 48, background: '#007bff22', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 22, color: '#007bff', marginTop: 6 }}>
-                {getAvatar(post.author_email)}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div className="post-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span className="post-author" style={{ fontWeight: 600, color: '#2c3e50' }}>{post.author_email}</span>
-                  <span className="post-date" style={{ color: '#6c757d', fontSize: '0.95rem' }}>{formatDate(post.created_at)}</span>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-md)' }}>
+            <button 
+              type="submit" 
+              className="btn btn-primary"
+              disabled={!newPost.trim() || !user}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 'var(--space-sm)',
+                padding: 'var(--space-md) var(--space-xl)'
+              }}
+            >
+              <FaPaperPlane style={{ fontSize: '0.875rem' }} />
+              Post
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Posts */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
+        {posts.map((post, index) => (
+          <div 
+            key={post._id} 
+            className="timeline-post"
+            style={{
+              animation: `slideInUp 0.6s ease-out ${index * 0.1}s both`
+            }}
+          >
+            {/* Post Header */}
+            <div className="post-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  background: 'linear-gradient(135deg, var(--primary-color), var(--accent-color))',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                  boxShadow: 'var(--shadow-md)'
+                }}>
+                  <FaUser />
                 </div>
-                <div className="post-content" style={{ marginBottom: 10, lineHeight: 1.7, fontSize: 17 }}>
-                  {post.content}
-                </div>
-                {post.livestream_url && (
-                  <div className="livestream-section" style={{ marginBottom: 15 }}>
-                    <div style={{ 
-                      background: '#f8f9fa', 
-                      border: '1px solid #e3e3e3', 
-                      borderRadius: 8, 
-                      padding: 12,
-                      marginBottom: 10
-                    }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 8, 
-                        marginBottom: 8,
-                        color: '#dc3545',
-                        fontWeight: 600,
-                        fontSize: 14
-                      }}>
-                        🎥 <span>Live Stream</span>
-                      </div>
-                      <iframe
-                        src={getEmbedUrl(post.livestream_url)}
-                        width="100%"
-                        height="315"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        title="Livestream"
-                        style={{ borderRadius: 4 }}
-                      />
-                    </div>
+                <div>
+                  <div className="post-author">{post.author.email}</div>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 'var(--space-sm)',
+                    color: 'var(--text-tertiary)',
+                    fontSize: '0.875rem'
+                  }}>
+                    <FaClock style={{ fontSize: '0.75rem' }} />
+                    {formatDate(post.createdAt)}
                   </div>
-                )}
-                <div className="comments-section" style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f0f0' }}>
-                  <h4 style={{ marginBottom: 10, color: '#2c3e50', fontSize: 17, fontWeight: 500 }}>
-                    Comments ({post.comments ? post.comments.length : 0})
-                  </h4>
-                  {post.comments && post.comments.map((comment) => (
-                    <div key={comment.id} className="comment" style={{ background: '#f8f9fa', padding: 10, marginBottom: 8, borderRadius: 5, display: 'flex', gap: 10 }}>
-                      <div style={{ minWidth: 32, minHeight: 32, background: '#007bff11', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 15, color: '#007bff' }}>
-                        {getAvatar(comment.author_email)}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                          <strong style={{ color: '#2c3e50', fontSize: 15 }}>{comment.author_email}</strong>
-                          <small style={{ color: '#6c757d' }}>{formatDate(comment.created_at)}</small>
+                </div>
+              </div>
+              
+              {/* Post Actions Dropdown */}
+              {user && post.author._id === user._id && (
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setShowDropdown(showDropdown === post._id ? null : post._id)}
+                    className="btn btn-ghost"
+                    style={{ 
+                      padding: 'var(--space-sm)',
+                      fontSize: '1.1rem',
+                      color: 'var(--text-tertiary)'
+                    }}
+                  >
+                    <FaEllipsisH />
+                  </button>
+                  
+                  {showDropdown === post._id && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      background: 'var(--background-primary)',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: 'var(--radius-lg)',
+                      boxShadow: 'var(--shadow-xl)',
+                      zIndex: 1000,
+                      minWidth: '150px',
+                      overflow: 'hidden'
+                    }}>
+                      <button
+                        onClick={() => handleDeletePost(post._id)}
+                        style={{
+                          width: '100%',
+                          padding: 'var(--space-md)',
+                          border: 'none',
+                          background: 'none',
+                          color: 'var(--error-color)',
+                          fontSize: '0.875rem',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 'var(--space-sm)',
+                          transition: 'background var(--transition-fast)'
+                        }}
+                        onMouseEnter={(e) => e.target.style.background = 'var(--error-lighter)'}
+                        onMouseLeave={(e) => e.target.style.background = 'none'}
+                      >
+                        <FaTrash style={{ fontSize: '0.875rem' }} />
+                        Delete Post
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Post Content */}
+            <div className="post-content" style={{ fontSize: '1.1rem', lineHeight: '1.7' }}>
+              {post.content}
+            </div>
+
+            {/* Post Actions */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 'var(--space-lg)',
+              paddingTop: 'var(--space-md)',
+              borderTop: '1px solid var(--border-light)'
+            }}>
+              <button className="btn btn-ghost" style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 'var(--space-sm)',
+                fontSize: '0.875rem'
+              }}>
+                <FaHeart style={{ color: 'var(--text-tertiary)' }} />
+                Like
+              </button>
+              <button className="btn btn-ghost" style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 'var(--space-sm)',
+                fontSize: '0.875rem'
+              }}>
+                <FaComment style={{ color: 'var(--text-tertiary)' }} />
+                {post.comments ? post.comments.length : 0} Comments
+              </button>
+              <button className="btn btn-ghost" style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 'var(--space-sm)',
+                fontSize: '0.875rem'
+              }}>
+                <FaShare style={{ color: 'var(--text-tertiary)' }} />
+                Share
+              </button>
+            </div>
+
+            {/* Comments Section */}
+            <div className="comments-section">
+              {/* Add Comment */}
+              {user && (
+                <CommentForm 
+                  postId={post._id} 
+                  onAddComment={handleAddComment}
+                  user={user}
+                />
+              )}
+              
+              {/* Comments List */}
+              {post.comments && post.comments.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+                  {post.comments.map((comment) => (
+                    <div key={comment._id} className="comment">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            background: 'linear-gradient(135deg, var(--accent-color), var(--primary-color))',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontSize: '0.875rem',
+                            fontWeight: 'bold'
+                          }}>
+                            <FaUser />
+                          </div>
+                          <div>
+                            <div style={{ 
+                              fontWeight: '600', 
+                              color: 'var(--primary-color)',
+                              fontSize: '0.875rem'
+                            }}>
+                              {comment.author.email}
+                            </div>
+                            <div style={{ 
+                              color: 'var(--text-tertiary)', 
+                              fontSize: '0.75rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 'var(--space-xs)'
+                            }}>
+                              <FaClock style={{ fontSize: '0.625rem' }} />
+                              {formatDate(comment.createdAt)}
+                            </div>
+                          </div>
                         </div>
-                        <p style={{ margin: 0, fontSize: 15 }}>{comment.content}</p>
+                        
+                        {/* Comment Delete Button */}
+                        {user && comment.author._id === user._id && (
+                          <button
+                            onClick={() => setShowCommentDeleteConfirm(showCommentDeleteConfirm === comment._id ? null : comment._id)}
+                            className="btn btn-ghost"
+                            style={{ 
+                              padding: 'var(--space-xs)',
+                              fontSize: '0.75rem',
+                              color: 'var(--error-color)'
+                            }}
+                          >
+                            <FaTrash />
+                          </button>
+                        )}
                       </div>
+                      
+                      <div style={{ 
+                        marginTop: 'var(--space-sm)',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.875rem',
+                        lineHeight: '1.6'
+                      }}>
+                        {comment.content}
+                      </div>
+                      
+                      {/* Comment Delete Confirmation */}
+                      {showCommentDeleteConfirm === comment._id && (
+                        <div style={{
+                          marginTop: 'var(--space-sm)',
+                          padding: 'var(--space-sm)',
+                          background: 'var(--error-lighter)',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--error-light)'
+                        }}>
+                          <p style={{ 
+                            color: 'var(--error-color)', 
+                            fontSize: '0.875rem',
+                            marginBottom: 'var(--space-sm)'
+                          }}>
+                            Are you sure you want to delete this comment?
+                          </p>
+                          <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                            <button
+                              onClick={() => handleDeleteComment(post._id, comment._id)}
+                              className="btn btn-secondary"
+                              style={{ fontSize: '0.75rem', padding: 'var(--space-xs) var(--space-sm)' }}
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={() => setShowCommentDeleteConfirm(null)}
+                              className="btn btn-ghost"
+                              style={{ fontSize: '0.75rem', padding: 'var(--space-xs) var(--space-sm)' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
-                  <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-                    <textarea
-                      className="form-control"
-                      rows="2"
-                      placeholder="Add a comment..."
-                      value={newComment[post.id] || ''}
-                      onChange={(e) => setNewComment(prev => ({ ...prev, [post.id]: e.target.value }))}
-                      style={{ flex: 1, minHeight: 36, resize: 'vertical' }}
-                    />
-                    <button 
-                      onClick={() => handleSubmitComment(post.id)}
-                      className="btn btn-secondary"
-                      style={{ minWidth: 100 }}
-                      disabled={!newComment[post.id] || !newComment[post.id].trim()}
-                    >
-                      Comment
-                    </button>
-                  </div>
                 </div>
-              </div>
+              )}
             </div>
-          ))
-        )}
+          </div>
+        ))}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            background: 'var(--background-primary)',
+            borderRadius: 'var(--radius-xl)',
+            padding: 'var(--space-2xl)',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: 'var(--shadow-2xl)',
+            border: '1px solid var(--border-light)'
+          }}>
+            <h3 style={{ 
+              color: 'var(--text-primary)', 
+              marginBottom: 'var(--space-md)',
+              fontSize: '1.25rem',
+              fontWeight: '600'
+            }}>
+              Delete Post
+            </h3>
+            <p style={{ 
+              color: 'var(--text-secondary)', 
+              marginBottom: 'var(--space-xl)',
+              lineHeight: '1.6'
+            }}>
+              Are you sure you want to delete this post? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
+              <button
+                onClick={() => handleDeletePost(showDeleteConfirm)}
+                className="btn btn-secondary"
+                style={{ flex: 1 }}
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="btn btn-outline"
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div ref={postsEndRef} />
+
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        @keyframes slideInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
+  );
+};
+
+// Comment Form Component
+const CommentForm = ({ postId, onAddComment, user }) => {
+  const [commentText, setCommentText] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!commentText.trim()) return;
+    
+    onAddComment(postId, commentText);
+    setCommentText('');
+  };
+
+  return (
+    <form onSubmit={handleSubmit} style={{ marginBottom: 'var(--space-lg)' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
+        <div style={{
+          width: '32px',
+          height: '32px',
+          background: 'linear-gradient(135deg, var(--accent-color), var(--primary-color))',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          fontSize: '0.875rem',
+          fontWeight: 'bold',
+          flexShrink: 0
+        }}>
+          <FaUser />
+        </div>
+        <div style={{ flex: 1, display: 'flex', gap: 'var(--space-sm)' }}>
+          <input
+            type="text"
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder="Write a comment..."
+            className="form-control"
+            style={{ 
+              fontSize: '0.875rem',
+              padding: 'var(--space-sm) var(--space-md)',
+              border: '2px solid var(--border-light)',
+              borderRadius: 'var(--radius-lg)',
+              flex: 1
+            }}
+          />
+          <button 
+            type="submit" 
+            className="btn btn-primary"
+            disabled={!commentText.trim()}
+            style={{ 
+              padding: 'var(--space-sm) var(--space-md)',
+              fontSize: '0.875rem'
+            }}
+          >
+            <FaPaperPlane style={{ fontSize: '0.75rem' }} />
+          </button>
+        </div>
+      </div>
+    </form>
   );
 };
 

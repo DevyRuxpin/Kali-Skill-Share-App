@@ -5,7 +5,8 @@ import {
   FaReact, FaVuejs, FaAngular, FaHtml5, FaCss3Alt, FaBootstrap, FaSass,
   FaNodeJs, FaServer, FaLaravel,
   FaGraduationCap, FaBook, FaChalkboardTeacher,
-  FaExternalLinkAlt, FaStar, FaFire, FaRocket, FaCode
+  FaExternalLinkAlt, FaStar, FaFire, FaRocket, FaCode,
+  FaSpinner
 } from 'react-icons/fa';
 import { SiTypescript, SiKotlin, SiWebpack, SiNextdotjs, SiTailwindcss, SiDjango, SiFlask, SiSpringboot, SiFastapi, SiDotnet, SiCoursera, SiEdx, SiUdemy, SiFreecodecamp, SiCodecademy, SiMdnwebdocs } from 'react-icons/si';
 
@@ -20,17 +21,17 @@ const Home = () => {
     if (url.includes('youtube.com') || url.includes('youtu.be')) return <FaYoutube style={{ color: '#FF0000' }} />;
     if (url.includes('twitch.tv')) return <FaTwitch style={{ color: '#9146FF' }} />;
     if (url.includes('zoom.us') || url.includes('meet.google.com')) return <FaGoogle style={{ color: '#4285F4' }} />;
-    return <FaExternalLinkAlt style={{ color: '#6c757d' }} />;
+    return <FaExternalLinkAlt style={{ color: 'var(--text-tertiary)' }} />;
   };
 
   const getCategoryIcon = (category) => {
     const iconMap = {
-      'Languages': <FaCode style={{ color: '#007bff' }} />,
+      'Languages': <FaCode style={{ color: 'var(--primary-color)' }} />,
       'Frontend': <FaReact style={{ color: '#61DAFB' }} />,
-      'Backend': <FaServer style={{ color: '#28a745' }} />,
-      'Coding Schools/Platforms': <FaGraduationCap style={{ color: '#ffc107' }} />
+      'Backend': <FaServer style={{ color: 'var(--success-color)' }} />,
+      'DevOps': <FaRocket style={{ color: 'var(--accent-color)' }} />
     };
-    return iconMap[category] || <FaBook style={{ color: '#6c757d' }} />;
+    return iconMap[category] || <FaBook style={{ color: 'var(--text-tertiary)' }} />;
   };
 
   const getTechnologyIcon = (title) => {
@@ -75,13 +76,13 @@ const Home = () => {
     if (titleLower.includes('codecademy')) return <SiCodecademy style={{ color: '#1F4056' }} />;
     if (titleLower.includes('mdn')) return <SiMdnwebdocs style={{ color: '#000000' }} />;
     
-    return <FaBook style={{ color: '#6c757d' }} />;
+    return <FaBook style={{ color: 'var(--text-tertiary)' }} />;
   };
 
   const getPopularityBadge = (index) => {
     if (index < 3) return <FaFire style={{ color: '#FF6B35', fontSize: '0.8rem' }} />;
     if (index < 8) return <FaStar style={{ color: '#FFD700', fontSize: '0.8rem' }} />;
-    if (index < 15) return <FaRocket style={{ color: '#007bff', fontSize: '0.8rem' }} />;
+    if (index < 15) return <FaRocket style={{ color: 'var(--primary-color)', fontSize: '0.8rem' }} />;
     return null;
   };
 
@@ -117,12 +118,47 @@ const Home = () => {
   if (loading) {
     return (
       <div className="container">
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <div style={{ fontSize: '1.2rem', color: '#6c757d', marginBottom: '10px' }}>
-            📚 Loading educational resources...
+        <div style={{ 
+          textAlign: 'center', 
+          padding: 'var(--space-3xl) var(--space-lg)',
+          minHeight: '60vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{ 
+            fontSize: '3rem', 
+            marginBottom: 'var(--space-lg)', 
+            color: 'var(--primary-color)',
+            animation: 'pulse 2s infinite'
+          }}>
+            📚
           </div>
-          <div style={{ color: '#6c757d' }}>
+          <div style={{ 
+            fontSize: '1.5rem', 
+            color: 'var(--text-secondary)', 
+            marginBottom: 'var(--space-md)',
+            fontWeight: '600'
+          }}>
+            Loading Educational Resources
+          </div>
+          <div style={{ 
+            color: 'var(--text-tertiary)', 
+            marginBottom: 'var(--space-xl)',
+            fontSize: '1rem'
+          }}>
             This may take a few seconds
+          </div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-sm)',
+            color: 'var(--primary-color)',
+            fontSize: '1.1rem'
+          }}>
+            <FaSpinner style={{ animation: 'spin 1s linear infinite' }} />
+            Loading...
           </div>
         </div>
       </div>
@@ -132,14 +168,43 @@ const Home = () => {
   if (error) {
     return (
       <div className="container">
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '15px' }}>⚠️</div>
-          <h3 style={{ color: '#6c757d', marginBottom: '10px' }}>Error Loading Resources</h3>
-          <p style={{ color: '#6c757d', marginBottom: '20px' }}>{error}</p>
+        <div style={{ 
+          textAlign: 'center', 
+          padding: 'var(--space-3xl) var(--space-lg)',
+          minHeight: '60vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{ 
+            fontSize: '4rem', 
+            marginBottom: 'var(--space-lg)', 
+            color: 'var(--error-color)',
+            animation: 'shake 0.5s ease-in-out'
+          }}>
+            ⚠️
+          </div>
+          <h3 style={{ 
+            color: 'var(--text-primary)', 
+            marginBottom: 'var(--space-md)',
+            fontSize: '1.75rem',
+            fontWeight: '600'
+          }}>
+            Error Loading Resources
+          </h3>
+          <p style={{ 
+            color: 'var(--text-secondary)', 
+            marginBottom: 'var(--space-xl)',
+            fontSize: '1.1rem',
+            maxWidth: '500px'
+          }}>
+            {error}
+          </p>
           <button 
             onClick={() => window.location.reload()}
             className="btn btn-primary"
-            style={{ fontSize: 16 }}
+            style={{ fontSize: '1rem', padding: 'var(--space-md) var(--space-xl)' }}
           >
             Try Again
           </button>
@@ -149,143 +214,347 @@ const Home = () => {
   }
 
   return (
-    <div className="container">
-      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <h1 style={{ color: '#2c3e50', marginBottom: '10px', fontWeight: 700, fontSize: 36 }}>
-          Welcome to Kali Skill Share
-        </h1>
-        <p style={{ fontSize: '1.15rem', color: '#6c757d', marginBottom: 0 }}>
-          Discover the best web development resources organized by skill categories
-        </p>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 32 }}>
-        {categories.map((category) => (
-          <section key={category.key} style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 28, border: '1px solid #e3e3e3' }}>
-            <h2 style={{ 
-              color: '#007bff', 
-              borderBottom: '2px solid #007bff22', 
-              paddingBottom: 10, 
-              marginBottom: 20, 
-              fontWeight: 600, 
-              fontSize: 26, 
-              letterSpacing: 0.5,
+    <div className="container fade-in">
+      {/* Hero Section */}
+      <div style={{ 
+        textAlign: 'center', 
+        marginBottom: 'var(--space-3xl)',
+        padding: 'var(--space-2xl) 0'
+      }}>
+        <div style={{
+          background: 'linear-gradient(135deg, var(--primary-lighter) 0%, var(--accent-lighter) 100%)',
+          borderRadius: 'var(--radius-2xl)',
+          padding: 'var(--space-3xl) var(--space-2xl)',
+          border: '1px solid var(--border-light)',
+          boxShadow: 'var(--shadow-lg)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: '-50%',
+            right: '-50%',
+            width: '200%',
+            height: '200%',
+            background: 'radial-gradient(circle, rgba(37, 99, 235, 0.1) 0%, transparent 70%)',
+            animation: 'float 6s ease-in-out infinite'
+          }} />
+          
+          <h1 style={{ 
+            color: 'var(--text-primary)', 
+            marginBottom: 'var(--space-lg)', 
+            fontWeight: '800', 
+            fontSize: '3rem',
+            background: 'linear-gradient(135deg, var(--primary-color), var(--accent-color))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            position: 'relative',
+            zIndex: 1
+          }}>
+            Welcome to KaliShare
+          </h1>
+          <p style={{ 
+            fontSize: '1.25rem', 
+            color: 'var(--text-secondary)', 
+            marginBottom: 'var(--space-lg)',
+            fontWeight: '500',
+            position: 'relative',
+            zIndex: 1
+          }}>
+            Discover the best web development resources organized by skill categories
+          </p>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: 'var(--space-md)',
+            flexWrap: 'wrap',
+            position: 'relative',
+            zIndex: 1
+          }}>
+            <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 12
+              gap: 'var(--space-sm)',
+              padding: 'var(--space-sm) var(--space-md)',
+              background: 'rgba(255, 255, 255, 0.8)',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              color: 'var(--primary-color)',
+              backdropFilter: 'blur(10px)'
             }}>
-              {getCategoryIcon(category.name)}
-              {category.name}
-            </h2>
+              <FaBook />
+              {categories.length} Categories
+            </div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-sm)',
+              padding: 'var(--space-sm) var(--space-md)',
+              background: 'rgba(255, 255, 255, 0.8)',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              color: 'var(--success-color)',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <FaGraduationCap />
+              Curated Resources
+            </div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-sm)',
+              padding: 'var(--space-sm) var(--space-md)',
+              background: 'rgba(255, 255, 255, 0.8)',
+              borderRadius: 'var(--radius-lg)',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              color: 'var(--accent-color)',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <FaChalkboardTeacher />
+              Free Learning
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Categories Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-2xl)' }}>
+        {categories.map((category, categoryIndex) => (
+          <section 
+            key={category.key} 
+            style={{ 
+              background: 'var(--background-primary)', 
+              borderRadius: 'var(--radius-2xl)', 
+              boxShadow: 'var(--shadow-lg)', 
+              padding: 'var(--space-2xl)', 
+              border: '1px solid var(--border-light)',
+              position: 'relative',
+              overflow: 'hidden',
+              animation: `slideInUp 0.6s ease-out ${categoryIndex * 0.1}s both`
+            }}
+          >
+            {/* Category Header */}
+            <div style={{
+              position: 'relative',
+              marginBottom: 'var(--space-xl)'
+            }}>
+              <h2 style={{ 
+                color: 'var(--primary-color)', 
+                borderBottom: '3px solid var(--primary-lighter)', 
+                paddingBottom: 'var(--space-md)', 
+                marginBottom: 'var(--space-lg)', 
+                fontWeight: '700', 
+                fontSize: '2rem', 
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-md)'
+              }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  background: 'linear-gradient(135deg, var(--primary-color), var(--accent-color))',
+                  borderRadius: 'var(--radius-lg)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '1.5rem',
+                  boxShadow: 'var(--shadow-md)'
+                }}>
+                  {getCategoryIcon(category.name)}
+                </div>
+                {category.name}
+              </h2>
+              
+              <div style={{
+                position: 'absolute',
+                top: '0',
+                right: '0',
+                background: 'linear-gradient(135deg, var(--primary-lighter), var(--accent-lighter))',
+                padding: 'var(--space-sm) var(--space-md)',
+                borderRadius: 'var(--radius-lg)',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                color: 'var(--primary-color)'
+              }}>
+                {results[category.key] ? results[category.key].length : 0} Resources
+              </div>
+            </div>
             
-            <div className="search-results" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
-              {results[category.key] && results[category.key].slice(0, 25).map((result, index) => (
+            {/* Resources Grid */}
+            <div className="search-results" style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+              gap: 'var(--space-lg)' 
+            }}>
+              {results[category.key] && results[category.key].slice(0, 9).map((result, index) => (
                 <div 
                   key={index} 
                   className="search-result-item" 
                   style={{ 
-                    background: '#f8f9fa', 
-                    borderRadius: 12, 
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)', 
-                    padding: 20, 
-                    transition: 'all 0.3s ease', 
-                    border: '1px solid #e3e3e3', 
+                    background: 'var(--background-secondary)', 
+                    borderRadius: 'var(--radius-xl)', 
+                    boxShadow: 'var(--shadow-md)', 
+                    padding: 'var(--space-xl)', 
+                    transition: 'all var(--transition-normal)', 
+                    border: '1px solid var(--border-light)', 
                     cursor: 'pointer',
                     position: 'relative',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    animation: `fadeInUp 0.5s ease-out ${index * 0.05}s both`
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-4px)';
-                    e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.12)';
-                    e.target.style.borderColor = '#007bff';
+                    e.target.style.transform = 'translateY(-8px) scale(1.02)';
+                    e.target.style.boxShadow = 'var(--shadow-2xl)';
+                    e.target.style.borderColor = 'var(--primary-color)';
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
-                    e.target.style.borderColor = '#e3e3e3';
+                    e.target.style.transform = 'translateY(0) scale(1)';
+                    e.target.style.boxShadow = 'var(--shadow-md)';
+                    e.target.style.borderColor = 'var(--border-light)';
                   }}
+                  onClick={() => window.open(result.link, '_blank')}
                 >
-                  {/* Technology Icon */}
-                  <div style={{ 
-                    position: 'absolute', 
-                    top: 12, 
-                    left: 12, 
-                    fontSize: '1.2rem',
-                    background: 'white',
-                    borderRadius: '50%',
-                    padding: 4,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }}>
-                    {getTechnologyIcon(result.title)}
-                  </div>
-
                   {/* Popularity Badge */}
                   {getPopularityBadge(index) && (
-                    <div style={{ 
-                      position: 'absolute', 
-                      top: 12, 
-                      right: 12,
-                      background: 'white',
+                    <div style={{
+                      position: 'absolute',
+                      top: 'var(--space-md)',
+                      right: 'var(--space-md)',
+                      background: 'rgba(255, 255, 255, 0.9)',
                       borderRadius: '50%',
-                      padding: 4,
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: 'var(--shadow-sm)',
+                      backdropFilter: 'blur(10px)'
                     }}>
                       {getPopularityBadge(index)}
                     </div>
                   )}
 
-                  {/* Platform Icon */}
+                  {/* Resource Header */}
                   <div style={{ 
-                    position: 'absolute', 
-                    bottom: 12, 
-                    right: 12,
-                    fontSize: '1rem'
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'flex-start', 
+                    marginBottom: 'var(--space-md)' 
                   }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                      {getTechnologyIcon(result.title)}
+                      <span style={{ 
+                        background: 'var(--primary-lighter)', 
+                        color: 'var(--primary-color)', 
+                        padding: '4px 8px', 
+                        borderRadius: 'var(--radius-sm)', 
+                        fontSize: '0.75rem', 
+                        fontWeight: '600', 
+                        whiteSpace: 'nowrap', 
+                        marginLeft: 'var(--space-xs)' 
+                      }}>
+                        {result.source}
+                      </span>
+                    </div>
                     {getPlatformIcon(result.link)}
                   </div>
 
-                  <a 
-                    href={result.link} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="result-title"
-                    style={{ 
-                      color: '#007bff', 
-                      fontWeight: 600, 
-                      fontSize: 16, 
-                      textDecoration: 'none', 
-                      marginBottom: 8, 
-                      display: 'block',
-                      lineHeight: 1.4,
-                      paddingTop: 8,
-                      paddingRight: 40
-                    }}
-                  >
+                  {/* Resource Title */}
+                  <h4 style={{ 
+                    margin: '0 0 var(--space-md) 0', 
+                    fontSize: '1.1rem', 
+                    lineHeight: '1.4', 
+                    flex: 1,
+                    color: 'var(--primary-color)',
+                    textDecoration: 'none',
+                    fontWeight: '600',
+                    transition: 'color var(--transition-fast)'
+                  }}>
                     {result.title}
-                  </a>
-                  <p className="result-snippet" style={{ 
-                    color: '#6c757d', 
-                    fontSize: 14, 
-                    margin: 0,
-                    lineHeight: 1.5,
-                    paddingBottom: 30
-                  }}>
-                    {result.snippet}
-                  </p>
+                  </h4>
 
-                  {/* External Link Badge */}
-                  <div style={{ 
-                    position: 'absolute', 
-                    bottom: 12, 
-                    left: 12, 
-                    background: '#28a745', 
-                    color: 'white', 
-                    fontSize: '0.7rem', 
-                    padding: '3px 8px', 
-                    borderRadius: '12px',
-                    fontWeight: 500
+                  {/* Resource Meta */}
+                  <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap', marginBottom: 'var(--space-md)' }}>
+                    <span style={{ 
+                      background: 'var(--accent-lighter)', 
+                      color: 'var(--accent-color)', 
+                      padding: '4px 8px', 
+                      borderRadius: 'var(--radius-sm)', 
+                      fontSize: '0.75rem', 
+                      fontWeight: '500' 
+                    }}>
+                      {result.type}
+                    </span>
+                    <span style={{ 
+                      background: result.difficulty === 'beginner' 
+                        ? 'rgba(34, 197, 94, 0.15)' 
+                        : result.difficulty === 'intermediate' 
+                        ? 'rgba(245, 158, 11, 0.15)' 
+                        : 'rgba(239, 68, 68, 0.15)',
+                      color: result.difficulty === 'beginner' 
+                        ? '#15803d' 
+                        : result.difficulty === 'intermediate' 
+                        ? '#a16207' 
+                        : '#b91c1c',
+                      padding: '4px 8px', 
+                      borderRadius: 'var(--radius-sm)', 
+                      fontSize: '0.75rem', 
+                      fontWeight: '600',
+                      border: `1px solid ${result.difficulty === 'beginner' 
+                        ? 'rgba(34, 197, 94, 0.3)' 
+                        : result.difficulty === 'intermediate' 
+                        ? 'rgba(245, 158, 11, 0.3)' 
+                        : 'rgba(239, 68, 68, 0.3)'}`,
+                      textTransform: 'capitalize'
+                    }}>
+                      {result.difficulty}
+                    </span>
+                    {result.free && (
+                      <span style={{ 
+                        background: 'var(--warning-lighter)', 
+                        color: 'var(--warning-color)', 
+                        padding: '4px 8px', 
+                        borderRadius: 'var(--radius-sm)', 
+                        fontSize: '0.75rem', 
+                        fontWeight: '500' 
+                      }}>
+                        Free
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Hover Effect Overlay */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(6, 182, 212, 0.1))',
+                    opacity: 0,
+                    transition: 'opacity var(--transition-normal)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    pointerEvents: 'none'
                   }}>
-                    External
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.9)',
+                      padding: 'var(--space-sm) var(--space-md)',
+                      borderRadius: 'var(--radius-lg)',
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      color: 'var(--primary-color)',
+                      backdropFilter: 'blur(10px)'
+                    }}>
+                      Click to Open
+                    </div>
                   </div>
                 </div>
               ))}
@@ -294,21 +563,54 @@ const Home = () => {
         ))}
       </div>
 
-      <div style={{ background: '#e9ecef', padding: '28px', borderRadius: '12px', marginTop: '40px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-        <h3 style={{ color: '#2c3e50', marginBottom: '10px', fontWeight: 600, fontSize: 22 }}>
-          Ready to share your knowledge?
-        </h3>
-        <p style={{ color: '#6c757d', marginBottom: '15px', fontSize: 16 }}>
-          Join the conversation in our Timeline and connect with other developers
-        </p>
-        <a 
-          href="/timeline" 
-          className="btn btn-primary"
-          style={{ textDecoration: 'none', minWidth: 160, fontSize: 17 }}
-        >
-          Go to Timeline
-        </a>
-      </div>
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        @keyframes slideInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .search-result-item:hover .hover-overlay {
+          opacity: 1;
+        }
+      `}</style>
     </div>
   );
 };

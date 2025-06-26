@@ -1,72 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { FaSearch } from 'react-icons/fa';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { 
-  FaSearch, FaExternalLinkAlt, FaStar, FaFire, FaRocket,
-  FaJs, FaPython, FaJava, FaPhp, FaSwift,
-  FaReact, FaVuejs, FaAngular, FaHtml5, FaCss3Alt, FaBootstrap, FaSass,
-  FaNodeJs, FaServer, FaLaravel, FaBook, FaCode
-} from 'react-icons/fa';
-import { SiTypescript, SiKotlin, SiWebpack, SiNextdotjs, SiTailwindcss, SiDjango, SiFlask, SiSpringboot, SiFastapi, SiDotnet } from 'react-icons/si';
 
 const Search = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { trackUserAction, trackFeatureUsage } = useAnalytics();
-
-  // Icon mapping for different technologies
-  const getTechnologyIcon = (title) => {
-    const titleLower = title.toLowerCase();
-    
-    // Languages
-    if (titleLower.includes('javascript')) return <FaJs style={{ color: '#F7DF1E' }} />;
-    if (titleLower.includes('python')) return <FaPython style={{ color: '#3776AB' }} />;
-    if (titleLower.includes('java')) return <FaJava style={{ color: '#ED8B00' }} />;
-    if (titleLower.includes('php')) return <FaPhp style={{ color: '#777BB4' }} />;
-    if (titleLower.includes('swift')) return <FaSwift style={{ color: '#FA7343' }} />;
-    if (titleLower.includes('go') || titleLower.includes('golang')) return <FaCode style={{ color: '#00ADD8' }} />;
-    if (titleLower.includes('typescript')) return <SiTypescript style={{ color: '#3178C6' }} />;
-    if (titleLower.includes('kotlin')) return <SiKotlin style={{ color: '#7F52FF' }} />;
-    
-    // Frontend
-    if (titleLower.includes('react')) return <FaReact style={{ color: '#61DAFB' }} />;
-    if (titleLower.includes('vue')) return <FaVuejs style={{ color: '#4FC08D' }} />;
-    if (titleLower.includes('angular')) return <FaAngular style={{ color: '#DD0031' }} />;
-    if (titleLower.includes('html')) return <FaHtml5 style={{ color: '#E34F26' }} />;
-    if (titleLower.includes('css')) return <FaCss3Alt style={{ color: '#1572B6' }} />;
-    if (titleLower.includes('bootstrap')) return <FaBootstrap style={{ color: '#7952B3' }} />;
-    if (titleLower.includes('sass')) return <FaSass style={{ color: '#CC6699' }} />;
-    if (titleLower.includes('webpack')) return <SiWebpack style={{ color: '#8DD6F9' }} />;
-    if (titleLower.includes('next.js')) return <SiNextdotjs style={{ color: '#000000' }} />;
-    if (titleLower.includes('tailwind')) return <SiTailwindcss style={{ color: '#06B6D4' }} />;
-    
-    // Backend
-    if (titleLower.includes('node.js')) return <FaNodeJs style={{ color: '#339933' }} />;
-    if (titleLower.includes('django')) return <SiDjango style={{ color: '#092E20' }} />;
-    if (titleLower.includes('flask')) return <SiFlask style={{ color: '#000000' }} />;
-    if (titleLower.includes('spring')) return <SiSpringboot style={{ color: '#6DB33F' }} />;
-    if (titleLower.includes('laravel')) return <FaLaravel style={{ color: '#FF2D20' }} />;
-    if (titleLower.includes('fastapi')) return <SiFastapi style={{ color: '#009688' }} />;
-    if (titleLower.includes('asp.net')) return <SiDotnet style={{ color: '#512BD4' }} />;
-    
-    return <FaBook style={{ color: '#6c757d' }} />;
-  };
-
-  const getPopularityBadge = (index) => {
-    if (index < 3) return <FaFire style={{ color: '#FF6B35', fontSize: '0.8rem' }} />;
-    if (index < 8) return <FaStar style={{ color: '#FFD700', fontSize: '0.8rem' }} />;
-    if (index < 15) return <FaRocket style={{ color: '#007bff', fontSize: '0.8rem' }} />;
-    return null;
-  };
-
-  const categories = [
-    { key: 'languages', name: 'Languages', icon: <FaJs style={{ color: '#007bff' }} /> },
-    { key: 'frontend', name: 'Frontend', icon: <FaReact style={{ color: '#61DAFB' }} /> },
-    { key: 'backend', name: 'Backend', icon: <FaServer style={{ color: '#28a745' }} /> },
-    { key: 'platforms', name: 'Coding Schools/Platforms', icon: <FaBook style={{ color: '#ffc107' }} /> }
-  ];
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
+  const { trackUserAction } = useAnalytics();
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -74,10 +18,16 @@ const Search = () => {
 
     setLoading(true);
     setError('');
+    setCurrentPage(1);
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/search/keyword?q=${encodeURIComponent(searchQuery)}&category=${selectedCategory}`, {
+      const params = new URLSearchParams({
+        q: searchQuery,
+        page: '1'
+      });
+
+      const response = await fetch(`/api/search/keyword?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -90,13 +40,19 @@ const Search = () => {
 
       const data = await response.json();
       setSearchResults(data.results || []);
+      setTotalPages(data.pagination?.totalPages || 1);
+      setCurrentPage(data.pagination?.currentPage || 1);
+      setTotalResults(data.totalFound || 0);
       
       // Track search activity
       trackUserAction('Search Performed', {
         searchTerm: searchQuery,
-        category: selectedCategory,
         resultCount: data.results ? data.results.length : 0,
-        searchType: 'keyword'
+        webResultsCount: data.webResultsCount || 0,
+        localResultsCount: data.localResultsCount || 0,
+        searchType: 'keyword',
+        page: data.pagination?.currentPage || 1,
+        totalPages: data.pagination?.totalPages || 1
       });
       
     } catch (error) {
@@ -107,14 +63,29 @@ const Search = () => {
     }
   };
 
-  const handleCategorySearch = async (category) => {
-    setSelectedCategory(category);
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setError('');
+    setCurrentPage(1);
+    setTotalPages(1);
+    setTotalResults(0);
+  };
+
+  const handlePageChange = async (page) => {
+    if (page === currentPage || !searchQuery.trim()) return;
+    
     setLoading(true);
     setError('');
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/search/category/${category}`, {
+      const params = new URLSearchParams({
+        q: searchQuery,
+        page: page.toString()
+      });
+
+      const response = await fetch(`/api/search/keyword?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -122,31 +93,32 @@ const Search = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Category search failed');
+        throw new Error(errorData.message || 'Failed to load page');
       }
 
       const data = await response.json();
-      setSearchResults(data.results || []);
       
-      // Track category search
-      trackFeatureUsage('Category Search', {
-        category: category,
-        resultCount: data.results ? data.results.length : 0
+      // Replace current page results (don't accumulate for pagination)
+      const newResults = data.results || [];
+      setSearchResults(newResults);
+      setCurrentPage(page);
+      setTotalPages(data.pagination?.totalPages || totalPages);
+      setTotalResults(data.totalFound || 0);
+      
+      // Track pagination
+      trackUserAction('Search Page Changed', {
+        searchTerm: searchQuery,
+        page: page,
+        newResultsCount: newResults.length,
+        totalResultsCount: data.totalFound || 0
       });
       
     } catch (error) {
-      console.error('Category search error:', error);
-      setError(error.message || 'Failed to load category');
+      console.error('Page change error:', error);
+      setError(error.message || 'Failed to load page');
     } finally {
       setLoading(false);
     }
-  };
-
-  const clearSearch = () => {
-    setSearchQuery('');
-    setSearchResults([]);
-    setSelectedCategory('');
-    setError('');
   };
 
   return (
@@ -154,55 +126,71 @@ const Search = () => {
       <div style={{ marginBottom: '30px' }}>
         <h1 style={{ color: '#2c3e50', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <FaSearch style={{ color: '#007bff', fontSize: '1.5rem' }} />
-          Search Resources
+          Search Educational Resources
         </h1>
-        
+        <p style={{ color: '#6c757d', fontSize: '1.1rem', marginBottom: '30px' }}>
+          Find tutorials, documentation, videos, and more for web development
+        </p>
+
         {/* Search Form */}
         <div className="card" style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.07)', border: '1px solid #e3e3e3', marginBottom: '20px' }}>
           <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '20px' }}>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: '200px' }}>
-                <label htmlFor="searchQuery" style={{ fontWeight: 500, marginBottom: '5px', display: 'block' }}>
-                  Search for resources:
-                </label>
+              <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+                <FaSearch style={{ 
+                  position: 'absolute', 
+                  left: '12px', 
+                  top: '50%', 
+                  transform: 'translateY(-50%)', 
+                  color: '#6c757d',
+                  fontSize: '1.1rem'
+                }} />
                 <input
                   type="text"
-                  id="searchQuery"
-                  className="form-control"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Enter keywords (e.g., React, Python, JavaScript)"
-                  style={{ fontSize: 16 }}
-                />
-              </div>
-              <div style={{ minWidth: '150px' }}>
-                <label htmlFor="category" style={{ fontWeight: 500, marginBottom: '5px', display: 'block' }}>
-                  Category:
-                </label>
-                <select
-                  id="category"
+                  placeholder="Search for tutorials, guides, documentation..."
                   className="form-control"
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  style={{ fontSize: 16 }}
-                >
-                  <option value="">All Categories</option>
-                  <option value="languages">Languages</option>
-                  <option value="frontend">Frontend</option>
-                  <option value="backend">Backend</option>
-                  <option value="platforms">Coding Schools/Platforms</option>
-                </select>
+                  style={{ 
+                    paddingLeft: '40px',
+                    fontSize: 16,
+                    border: '2px solid #e3e3e3',
+                    borderRadius: '8px',
+                    transition: 'all 0.3s ease'
+                  }}
+                  disabled={loading}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '1.2rem',
+                      color: '#6c757d',
+                      cursor: 'pointer',
+                      padding: '0',
+                      width: '20px',
+                      height: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '50%',
+                      transition: 'all 0.2s ease'
+                    }}
+                    disabled={loading}
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button 
-                type="button" 
-                onClick={clearSearch}
-                className="btn btn-secondary"
-                style={{ minWidth: 100 }}
-              >
-                Clear
-              </button>
               <button 
                 type="submit" 
                 className="btn btn-primary"
@@ -215,84 +203,58 @@ const Search = () => {
           </form>
         </div>
 
-        {/* Category Quick Search */}
-        <div style={{ marginBottom: '20px' }}>
-          <h3 style={{ color: '#2c3e50', marginBottom: '15px', fontSize: 18 }}>Quick Search by Category:</h3>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            {categories.map((category) => (
-              <button
-                key={category.key}
-                onClick={() => handleCategorySearch(category.key)}
-                className="btn btn-outline-primary"
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px',
-                  padding: '8px 16px',
-                  fontSize: 14,
-                  borderRadius: '20px',
-                  border: '1px solid #007bff',
-                  background: selectedCategory === category.key ? '#007bff' : 'transparent',
-                  color: selectedCategory === category.key ? 'white' : '#007bff',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {category.icon}
-                {category.name}
-              </button>
-            ))}
+        {/* Error Display */}
+        {error && (
+          <div style={{ 
+            background: '#f8d7da', 
+            color: '#721c24', 
+            padding: '12px', 
+            borderRadius: '8px', 
+            marginBottom: '20px',
+            border: '1px solid #f5c6cb'
+          }}>
+            <strong>Error:</strong> {error}
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Error Display */}
-      {error && (
-        <div style={{ 
-          background: '#f8d7da', 
-          color: '#721c24', 
-          padding: '12px', 
-          borderRadius: '8px', 
-          marginBottom: '20px',
-          border: '1px solid #f5c6cb'
-        }}>
-          <strong>Error:</strong> {error}
-        </div>
-      )}
-
-      {/* Search Results */}
-      {searchResults.length > 0 && (
-        <div>
-          <h3 style={{ color: '#2c3e50', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: 8 }}>
-            Search Results ({searchResults.length})
-            {selectedCategory && (
-              <span style={{ 
-                background: '#007bff', 
-                color: 'white', 
-                padding: '4px 8px', 
-                borderRadius: '12px', 
-                fontSize: 12,
-                fontWeight: 500
-              }}>
-                {selectedCategory}
-              </span>
-            )}
-          </h3>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
-            {searchResults.map((result, index) => (
-              <div 
-                key={index} 
-                className="search-result-item" 
-                style={{ 
-                  background: '#f8f9fa', 
-                  borderRadius: 12, 
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)', 
-                  padding: 20, 
-                  transition: 'all 0.3s ease', 
-                  border: '1px solid #e3e3e3', 
-                  cursor: 'pointer',
-                  position: 'relative',
-                  overflow: 'hidden'
+        {/* Search Results */}
+        {searchResults.length > 0 && (
+          <div>
+            <div style={{ 
+              background: '#e7f3ff', 
+              border: '1px solid #b3d9ff', 
+              borderRadius: '8px', 
+              padding: '16px', 
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              fontSize: '14px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FaSearch style={{ color: '#007bff' }} />
+                <strong>Search Results for "{searchQuery}"</strong>
+              </div>
+              <div style={{ display: 'flex', gap: '16px', marginLeft: 'auto' }}>
+                <span style={{ color: '#007bff' }}>
+                  📊 Total: {totalResults} results
+                </span>
+                <span style={{ color: '#28a745' }}>
+                  ✅ Showing {searchResults.length} results
+                </span>
+              </div>
+            </div>
+            
+            <div className="search-results" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px' }}>
+              {searchResults.map((result, index) => (
+                <div key={index} className="search-result-item" style={{ 
+                  background: 'white',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                  border: '1px solid #e3e3e3',
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer'
                 }}
                 onMouseEnter={(e) => {
                   e.target.style.transform = 'translateY(-4px)';
@@ -304,113 +266,149 @@ const Search = () => {
                   e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
                   e.target.style.borderColor = '#e3e3e3';
                 }}
-              >
-                {/* Technology Icon */}
-                <div style={{ 
-                  position: 'absolute', 
-                  top: 12, 
-                  left: 12, 
-                  fontSize: '1.2rem',
-                  background: 'white',
-                  borderRadius: '50%',
-                  padding: 4,
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                  {getTechnologyIcon(result.title)}
-                </div>
-
-                {/* Popularity Badge */}
-                {getPopularityBadge(index) && (
-                  <div style={{ 
-                    position: 'absolute', 
-                    top: 12, 
-                    right: 12,
-                    background: 'white',
-                    borderRadius: '50%',
-                    padding: 4,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }}>
-                    {getPopularityBadge(index)}
+                onClick={() => window.open(result.link, '_blank')}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                    <h4 style={{ 
+                      margin: 0, 
+                      fontSize: '1.1rem', 
+                      lineHeight: 1.4, 
+                      flex: 1,
+                      color: '#007bff',
+                      textDecoration: 'none',
+                      fontWeight: 600
+                    }}>
+                      {result.title}
+                    </h4>
+                    <span style={{ 
+                      background: '#f3f4f6', 
+                      color: '#6b7280', 
+                      padding: '4px 8px', 
+                      borderRadius: '6px', 
+                      fontSize: '0.75rem', 
+                      fontWeight: 500, 
+                      whiteSpace: 'nowrap', 
+                      marginLeft: '8px' 
+                    }}>
+                      {result.source}
+                    </span>
                   </div>
-                )}
-
-                {/* External Link Icon */}
-                <div style={{ 
-                  position: 'absolute', 
-                  bottom: 12, 
-                  right: 12,
-                  fontSize: '1rem',
-                  color: '#6c757d'
-                }}>
-                  <FaExternalLinkAlt />
+                  <p style={{ 
+                    color: '#6b7280', 
+                    fontSize: '0.9rem', 
+                    lineHeight: 1.5, 
+                    marginBottom: '10px' 
+                  }}>
+                    {result.snippet}
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ 
+                      background: '#e0e7ff', 
+                      color: '#3730a3', 
+                      padding: '4px 8px', 
+                      borderRadius: '6px', 
+                      fontSize: '0.75rem', 
+                      fontWeight: 500 
+                    }}>
+                      {result.type}
+                    </span>
+                    {result.free && (
+                      <span style={{ 
+                        background: '#dcfce7', 
+                        color: '#166534', 
+                        padding: '4px 8px', 
+                        borderRadius: '6px', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 500 
+                      }}>
+                        Free
+                      </span>
+                    )}
+                  </div>
                 </div>
-
-                <a 
-                  href={result.link} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="result-title"
-                  style={{ 
-                    color: '#007bff', 
-                    fontWeight: 600, 
-                    fontSize: 16, 
-                    textDecoration: 'none', 
-                    marginBottom: 8, 
-                    display: 'block',
-                    lineHeight: 1.4,
-                    paddingTop: 8,
-                    paddingRight: 40
-                  }}
-                >
-                  {result.title}
-                </a>
-                <p className="result-snippet" style={{ 
-                  color: '#6c757d', 
-                  fontSize: 14, 
-                  margin: 0,
-                  lineHeight: 1.5,
-                  paddingBottom: 30
-                }}>
-                  {result.snippet}
-                </p>
-
-                {/* External Link Badge */}
-                <div style={{ 
-                  position: 'absolute', 
-                  bottom: 12, 
-                  left: 12, 
-                  background: '#28a745', 
-                  color: 'white', 
-                  fontSize: '0.7rem', 
-                  padding: '3px 8px', 
-                  borderRadius: '12px',
-                  fontWeight: 500
-                }}>
-                  External
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* No Results */}
-      {searchResults.length === 0 && !loading && searchQuery && (
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '15px', color: '#6c757d' }}>🔍</div>
-          <h3 style={{ color: '#6c757d', marginBottom: '10px' }}>No results found</h3>
-          <p style={{ color: '#6c757d', marginBottom: '20px' }}>
-            Try adjusting your search terms or browse by category
-          </p>
-          <button 
-            onClick={clearSearch}
-            className="btn btn-primary"
-            style={{ fontSize: 16 }}
-          >
-            Clear Search
-          </button>
-        </div>
-      )}
+        {/* Pagination */}
+        {searchResults.length > 0 && totalPages > 1 && (
+          <div style={{ 
+            marginTop: '2rem', 
+            padding: '1.5rem', 
+            background: 'white', 
+            borderRadius: '12px', 
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)', 
+            border: '1px solid #e3e3e3'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', fontSize: '0.9rem', color: '#666' }}>
+              <span>Page {currentPage} of {totalPages}</span>
+              <span style={{ fontWeight: 600, color: '#007bff' }}>Total: {totalResults} results</span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const pageNum = i + 1;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    style={{
+                      padding: '8px 16px',
+                      border: '2px solid #e5e7eb',
+                      background: currentPage === pageNum ? '#007bff' : 'white',
+                      color: currentPage === pageNum ? 'white' : '#374151',
+                      borderRadius: '8px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      minWidth: '40px',
+                      textAlign: 'center'
+                    }}
+                    disabled={loading}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              {totalPages > 5 && currentPage < totalPages && (
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  style={{
+                    padding: '8px 16px',
+                    border: '2px solid #e5e7eb',
+                    background: '#f3f4f6',
+                    color: '#374151',
+                    borderRadius: '8px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  disabled={loading}
+                >
+                  Next
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* No Results */}
+        {searchResults.length === 0 && !loading && searchQuery && !error && (
+          <div style={{ textAlign: 'center', padding: '50px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '15px', color: '#6c757d' }}>🔍</div>
+            <h3 style={{ color: '#6c757d', marginBottom: '10px' }}>No results found</h3>
+            <p style={{ color: '#6c757d', marginBottom: '20px' }}>
+              Try adjusting your search terms or browse by category
+            </p>
+            <button 
+              onClick={clearSearch}
+              className="btn btn-primary"
+              style={{ fontSize: 16 }}
+            >
+              Clear Search
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

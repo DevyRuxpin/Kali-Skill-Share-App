@@ -9,9 +9,14 @@ const authRoutes = require('./routes/auth');
 const timelineRoutes = require('./routes/timeline');
 const searchRoutes = require('./routes/search');
 const { initDatabase, query } = require('./database/db');
+const resourceGenerator = require('./services/resourceGenerator');
 
 const app = express();
 const server = createServer(app);
+
+// Trust proxy for rate limiting (fixes X-Forwarded-For header error)
+app.set('trust proxy', 1);
+
 const io = new Server(server, {
   cors: {
     origin: process.env.FRONTEND_URL || "http://localhost:3000",
@@ -30,13 +35,21 @@ const allowedOrigins = [
   "http://localhost:3000",
   "https://kalishare-app-production.up.railway.app",
   "https://*.up.railway.app",
-  "https://*.railway.app"
+  "https://*.railway.app",
+  "https://railway.com" // Temporary fallback
 ].filter(Boolean); // Remove undefined values
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
+    
+    // In development, allow localhost origins
+    if (process.env.NODE_ENV !== 'production') {
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return callback(null, true);
+      }
+    }
     
     // Always allow Railway domains
     if (origin.includes('railway.app') || origin.includes('railway.com')) {
@@ -205,9 +218,33 @@ initDatabase()
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/health`);
       console.log(`🔍 API info: http://localhost:${PORT}/api`);
+      
+      // Start the resource generation service
+      console.log('🔄 Starting resource generation service...');
+      resourceGenerator.start();
+      console.log('✅ Resource generation service started (12-hour refresh cycle)');
     });
   })
   .catch(err => {
     console.error('❌ Failed to initialize database:', err);
     process.exit(1);
-  }); 
+  });
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully...');
+  resourceGenerator.stop();
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received, shutting down gracefully...');
+  resourceGenerator.stop();
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+}); 
