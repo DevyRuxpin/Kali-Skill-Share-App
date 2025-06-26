@@ -8,6 +8,7 @@ import Contact from './components/Contact';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import ReactGA from 'react-ga4';
+import { API_ENDPOINTS } from './config/api';
 import './App.css';
 
 // Component to track page views
@@ -30,7 +31,7 @@ function App() {
     const token = localStorage.getItem('token');
     if (token) {
       // Verify token with backend
-      fetch('/api/auth/verify', {
+      fetch(API_ENDPOINTS.AUTH.VERIFY, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

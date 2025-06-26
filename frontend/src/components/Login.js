@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAnalytics } from '../hooks/useAnalytics';
+import { API_ENDPOINTS } from '../config/api';
 
 const Login = ({ onLogin }) => {
   const [formData, setFormData] = useState({
@@ -25,8 +26,9 @@ const Login = ({ onLogin }) => {
 
     try {
       console.log('Attempting login for:', formData.email);
+      console.log('API endpoint:', API_ENDPOINTS.AUTH.LOGIN);
       
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
