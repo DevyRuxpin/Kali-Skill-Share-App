@@ -9,6 +9,7 @@ import {
   FaSpinner
 } from 'react-icons/fa';
 import { SiTypescript, SiKotlin, SiWebpack, SiNextdotjs, SiTailwindcss, SiDjango, SiFlask, SiSpringboot, SiFastapi, SiDotnet, SiCoursera, SiEdx, SiUdemy, SiFreecodecamp, SiCodecademy, SiMdnwebdocs } from 'react-icons/si';
+import AI from './AI';
 
 const Home = () => {
   const [categories, setCategories] = useState([]);
@@ -320,6 +321,9 @@ const Home = () => {
           </div>
         </div>
       </div>
+
+      {/* AI Assistant Section */}
+      <AI />
 
       {/* Categories Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-2xl)' }}>
