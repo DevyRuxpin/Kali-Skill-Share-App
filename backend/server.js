@@ -8,6 +8,7 @@ const { Server } = require('socket.io');
 const authRoutes = require('./routes/auth');
 const timelineRoutes = require('./routes/timeline');
 const searchRoutes = require('./routes/search');
+const aiRoutes = require('./routes/ai');
 const { initDatabase, query } = require('./database/db');
 const resourceGenerator = require('./services/resourceGenerator');
 
@@ -93,6 +94,7 @@ app.use('/api/search', searchLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/timeline', timelineRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Health check for Render deployment
 app.get('/health', async (req, res) => {
@@ -139,6 +141,7 @@ app.get('/api', (req, res) => {
       auth: '/api/auth',
       timeline: '/api/timeline',
       search: '/api/search',
+      ai: '/api/ai',
       health: '/api/health'
     }
   });

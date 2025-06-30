@@ -43,8 +43,8 @@ const Login = () => {
         trackUserAction('Login Successful', { email: formData.email });
         navigate('/');
       } else {
-        setError(data.message || 'Login failed');
-        trackUserAction('Login Failed', { email: formData.email, error: data.message });
+        setError(data.error || data.message || 'Login failed');
+        trackUserAction('Login Failed', { email: formData.email, error: data.error || data.message });
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -323,7 +323,7 @@ const Login = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }

@@ -239,7 +239,7 @@ const Navbar = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .navbar {
           background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(20px);

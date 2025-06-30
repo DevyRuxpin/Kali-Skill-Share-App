@@ -59,8 +59,8 @@ const Signup = () => {
         trackUserAction('Signup Successful', { email: formData.email });
         navigate('/');
       } else {
-        setError(data.message || 'Signup failed');
-        trackUserAction('Signup Failed', { email: formData.email, error: data.message });
+        setError(data.error || data.message || 'Signup failed');
+        trackUserAction('Signup Failed', { email: formData.email, error: data.error || data.message });
       }
     } catch (error) {
       console.error('Signup error:', error);
@@ -463,7 +463,7 @@ const Signup = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }

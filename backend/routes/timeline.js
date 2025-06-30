@@ -47,9 +47,12 @@ router.get('/', authenticateToken, async (req, res) => {
         p.livestream_url,
         p.created_at as "createdAt",
         u.id as "author._id",
-        u.email as "author.email"
+        u.email as "author.email",
+        COUNT(l.id) as like_count
       FROM posts p
       JOIN users u ON p.user_id = u.id
+      LEFT JOIN likes l ON p.id = l.post_id
+      GROUP BY p.id, u.id, u.email
       ORDER BY p.created_at DESC
     `;
     
@@ -73,11 +76,17 @@ router.get('/', authenticateToken, async (req, res) => {
         
         const commentsResult = await pool.query(commentsQuery, [post._id]);
         
+        // Check if current user liked this post
+        const userLikeQuery = 'SELECT id FROM likes WHERE post_id = $1 AND user_id = $2';
+        const userLikeResult = await pool.query(userLikeQuery, [post._id, req.user.id]);
+        
         return {
           _id: post._id,
           content: post.content,
           livestream_url: post.livestream_url,
           createdAt: post.createdAt,
+          likeCount: parseInt(post.like_count),
+          isLiked: userLikeResult.rows.length > 0,
           author: {
             _id: post["author._id"],
             email: post["author.email"]
@@ -360,35 +369,30 @@ router.post('/posts/:postId/comments', authenticateToken, async (req, res) => {
 // Delete a comment
 router.delete('/:postId/comments/:commentId', authenticateToken, async (req, res) => {
   try {
-    const { commentId } = req.params;
+    const { postId, commentId } = req.params;
 
-    // Check if comment exists and belongs to the user
+    // Check if comment exists and belongs to user
     const commentQuery = `
-      SELECT c.id, c.user_id, c.post_id, u.email as author_email
+      SELECT c.id, c.user_id, p.id as post_id
       FROM comments c
-      JOIN users u ON c.user_id = u.id
-      WHERE c.id = $1
+      JOIN posts p ON c.post_id = p.id
+      WHERE c.id = $1 AND c.post_id = $2
     `;
     
-    const comment = await pool.query(commentQuery, [commentId]);
+    const commentResult = await pool.query(commentQuery, [commentId, postId]);
     
-    if (comment.rows.length === 0) {
+    if (commentResult.rows.length === 0) {
       return res.status(404).json({ error: 'Comment not found' });
     }
 
-    // Check if the comment belongs to the current user
-    if (comment.rows[0].user_id !== req.user.id) {
-      return res.status(403).json({ error: 'You can only delete your own comments' });
+    if (commentResult.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized to delete this comment' });
     }
 
     // Delete the comment
     await pool.query('DELETE FROM comments WHERE id = $1', [commentId]);
 
-    res.json({ 
-      message: 'Comment deleted successfully',
-      commentId: commentId,
-      postId: comment.rows[0].post_id
-    });
+    res.json({ message: 'Comment deleted successfully' });
   } catch (error) {
     console.error('Error deleting comment:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -509,6 +513,81 @@ router.delete('/posts/:postId', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting post:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Like a post
+router.post('/:postId/like', authenticateToken, async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    // Check if post exists
+    const postQuery = 'SELECT id FROM posts WHERE id = $1';
+    const postResult = await pool.query(postQuery, [postId]);
+    
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Check if user already liked the post
+    const existingLikeQuery = 'SELECT id FROM likes WHERE post_id = $1 AND user_id = $2';
+    const existingLikeResult = await pool.query(existingLikeQuery, [postId, req.user.id]);
+    
+    if (existingLikeResult.rows.length > 0) {
+      return res.status(400).json({ error: 'Post already liked' });
+    }
+
+    // Add like
+    await pool.query('INSERT INTO likes (post_id, user_id) VALUES ($1, $2)', [postId, req.user.id]);
+
+    res.json({ message: 'Post liked successfully' });
+  } catch (error) {
+    console.error('Error liking post:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Unlike a post
+router.delete('/:postId/like', authenticateToken, async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    // Remove like
+    const result = await pool.query('DELETE FROM likes WHERE post_id = $1 AND user_id = $2', [postId, req.user.id]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Like not found' });
+    }
+
+    res.json({ message: 'Post unliked successfully' });
+  } catch (error) {
+    console.error('Error unliking post:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get like status for a post
+router.get('/:postId/like', authenticateToken, async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    // Check if user liked the post
+    const likeQuery = 'SELECT id FROM likes WHERE post_id = $1 AND user_id = $2';
+    const likeResult = await pool.query(likeQuery, [postId, req.user.id]);
+    
+    const isLiked = likeResult.rows.length > 0;
+
+    // Get total likes count
+    const countQuery = 'SELECT COUNT(*) as count FROM likes WHERE post_id = $1';
+    const countResult = await pool.query(countQuery, [postId]);
+    
+    res.json({
+      isLiked: isLiked,
+      likeCount: parseInt(countResult.rows[0].count)
+    });
+  } catch (error) {
+    console.error('Error getting like status:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -276,6 +276,81 @@ const Timeline = () => {
     }
   };
 
+  const handleLikePost = async (postId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const post = posts.find(p => p._id === postId);
+      const isCurrentlyLiked = post.isLiked;
+      
+      const response = await fetch(`/api/timeline/${postId}/like`, {
+        method: isCurrentlyLiked ? 'DELETE' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update like');
+      }
+
+      // Update the post's like status
+      setPosts(prev => prev.map(post => 
+        post._id === postId 
+          ? { 
+              ...post, 
+              isLiked: !isCurrentlyLiked,
+              likeCount: isCurrentlyLiked ? post.likeCount - 1 : post.likeCount + 1
+            }
+          : post
+      ));
+      
+      trackUserAction(isCurrentlyLiked ? 'Post Unliked' : 'Post Liked', { postId });
+    } catch (error) {
+      console.error('Error updating like:', error);
+      setError(error.message || 'Failed to update like');
+    }
+  };
+
+  const handleSharePost = async (post) => {
+    try {
+      const shareData = {
+        title: 'KaliShare Post',
+        text: post.content.substring(0, 100) + (post.content.length > 100 ? '...' : ''),
+        url: `${window.location.origin}/timeline?post=${post._id}`
+      };
+
+      if (navigator.share) {
+        await navigator.share(shareData);
+        trackUserAction('Post Shared', { postId: post._id, method: 'native' });
+      } else {
+        // Fallback: copy to clipboard
+        await navigator.clipboard.writeText(shareData.url);
+        setError('Link copied to clipboard!');
+        setTimeout(() => setError(''), 3000);
+        trackUserAction('Post Shared', { postId: post._id, method: 'clipboard' });
+      }
+    } catch (error) {
+      // Don't show error for canceled shares (this is normal behavior)
+      if (error.name === 'AbortError' || error.message.includes('Share canceled')) {
+        console.log('Share was canceled by user');
+        return;
+      }
+      
+      console.error('Error sharing post:', error);
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(`${window.location.origin}/timeline?post=${post._id}`);
+        setError('Link copied to clipboard!');
+        setTimeout(() => setError(''), 3000);
+        trackUserAction('Post Shared', { postId: post._id, method: 'clipboard' });
+      } catch (clipboardError) {
+        setError('Failed to share post');
+        setTimeout(() => setError(''), 3000);
+      }
+    }
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -612,14 +687,25 @@ const Timeline = () => {
               paddingTop: 'var(--space-md)',
               borderTop: '1px solid var(--border-light)'
             }}>
-              <button className="btn btn-ghost" style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 'var(--space-sm)',
-                fontSize: '0.875rem'
-              }}>
-                <FaHeart style={{ color: 'var(--text-tertiary)' }} />
-                Like
+              <button 
+                onClick={() => handleLikePost(post._id)}
+                className="btn btn-ghost" 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 'var(--space-sm)',
+                  fontSize: '0.875rem',
+                  color: post.isLiked ? 'var(--error-color)' : 'var(--text-tertiary)',
+                  transition: 'all var(--transition-fast)'
+                }}
+              >
+                <FaHeart style={{ 
+                  color: post.isLiked ? 'var(--error-color)' : 'var(--text-tertiary)',
+                  fill: post.isLiked ? 'var(--error-color)' : 'none',
+                  stroke: post.isLiked ? 'var(--error-color)' : 'var(--text-tertiary)',
+                  strokeWidth: '2'
+                }} />
+                {post.likeCount || 0} {post.likeCount === 1 ? 'Like' : 'Likes'}
               </button>
               <button className="btn btn-ghost" style={{ 
                 display: 'flex', 
@@ -630,12 +716,16 @@ const Timeline = () => {
                 <FaComment style={{ color: 'var(--text-tertiary)' }} />
                 {post.comments ? post.comments.length : 0} Comments
               </button>
-              <button className="btn btn-ghost" style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 'var(--space-sm)',
-                fontSize: '0.875rem'
-              }}>
+              <button 
+                onClick={() => handleSharePost(post)}
+                className="btn btn-ghost" 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 'var(--space-sm)',
+                  fontSize: '0.875rem'
+                }}
+              >
                 <FaShare style={{ color: 'var(--text-tertiary)' }} />
                 Share
               </button>
@@ -823,7 +913,7 @@ const Timeline = () => {
 
       <div ref={postsEndRef} />
 
-      <style jsx>{`
+      <style>{`
         @keyframes pulse {
           0%, 100% { transform: scale(1); }
           50% { transform: scale(1.1); }
